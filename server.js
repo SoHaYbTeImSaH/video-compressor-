@@ -6,6 +6,7 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,10 +17,10 @@ ffmpeg.setFfmpegPath(ffmpegStatic);
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ایجاد پوشه uploads اگر وجود نداشته باشد
-const uploadsDir = join(__dirname, 'uploads');
+// ایجاد پوشه uploads در مسیر موقت سیستم
+const uploadsDir = process.env.UPLOADS_DIR || join(os.tmpdir(), 'video-compressor-uploads');
 if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir);
+    fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // تنظیمات ذخیره‌سازی فایل
@@ -33,9 +34,28 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 100 * 1024 * 1024 // محدودیت حجم فایل: 100MB
+    }
+});
 
-app.use(cors());
+// تنظیم CORS برای دامنه‌های مجاز
+const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
+    process.env.ALLOWED_ORIGINS.split(',') : 
+    ['http://localhost:3000', 'https://your-app-name.onrender.com'];
+
+app.use(cors({
+    origin: function(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
+
 app.use(express.json());
 app.use(express.static('static'));
 
@@ -79,20 +99,37 @@ app.post('/compress', upload.single('video'), (req, res) => {
                     console.error('خطا در ارسال فایل:', err);
                 }
                 // پاکسازی فایل‌ها
-                fs.unlinkSync(inputPath);
-                fs.unlinkSync(outputPath);
+                cleanupFiles([inputPath, outputPath]);
             });
         })
         .on('error', (err) => {
             console.error('خطا در فشرده‌سازی:', err);
             // پاکسازی فایل در صورت خطا
-            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+            cleanupFiles([inputPath, outputPath]);
             res.status(500).json({ error: 'خطا در فشرده‌سازی ویدیو' });
         })
         .run();
 });
 
+// تابع کمکی برای پاکسازی فایل‌ها
+function cleanupFiles(files) {
+    files.forEach(file => {
+        try {
+            if (fs.existsSync(file)) {
+                fs.unlinkSync(file);
+            }
+        } catch (err) {
+            console.error(`خطا در پاکسازی فایل ${file}:`, err);
+        }
+    });
+}
+
+// مسیر وضعیت سرور
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.listen(port, () => {
     console.log(`سرور در پورت ${port} در حال اجراست`);
+    console.log(`پوشه آپلود: ${uploadsDir}`);
 }); 
