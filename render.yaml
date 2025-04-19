@@ -6,4 +6,16 @@ services:
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
-        value: production 
+        value: production
+      - key: PORT
+        value: 3000
+      - key: UPLOADS_DIR
+        value: /tmp/video-compressor-uploads
+      - key: ALLOWED_ORIGINS
+        value: https://sohaybteimsah.github.io,http://localhost:3000
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: uploads
+      mountPath: /tmp/video-compressor-uploads
+      sizeGB: 1 

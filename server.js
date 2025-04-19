@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
 import os from 'os';
+import https from 'https';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,6 +17,15 @@ ffmpeg.setFfmpegPath(ffmpegStatic);
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// تنظیمات امنیتی
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+});
 
 // ایجاد پوشه uploads در مسیر موقت سیستم
 const uploadsDir = process.env.UPLOADS_DIR || join(os.tmpdir(), 'video-compressor-uploads');
@@ -42,28 +52,23 @@ const upload = multer({
 });
 
 // تنظیم CORS برای دامنه‌های مجاز
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-    process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:3000', 'https://sohaybteimsah.github.io'];
-
 app.use(cors({
-    origin: function(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    credentials: true,
+    maxAge: 86400 // کش کردن preflight requests برای 24 ساعت
 }));
 
 // اضافه کردن middleware برای OPTIONS
 app.options('*', cors());
 
-app.use(express.json());
-app.use(express.static('static'));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.static('static', {
+    maxAge: '1h',
+    etag: true
+}));
 
 // مسیر اصلی
 app.get('/', (req, res) => {
@@ -72,10 +77,10 @@ app.get('/', (req, res) => {
 
 // مسیر فشرده‌سازی ویدیو
 app.post('/compress', (req, res, next) => {
-    // اضافه کردن هدرهای CORS به صورت دستی
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Max-Age', '86400');
     
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
@@ -110,18 +115,17 @@ app.post('/compress', (req, res, next) => {
         ])
         .output(outputPath)
         .on('end', () => {
-            // ارسال فایل فشرده شده
+            res.setHeader('Content-Type', 'video/mp4');
+            res.setHeader('Content-Disposition', 'attachment; filename=compressed-video.mp4');
             res.download(outputPath, 'compressed-video.mp4', (err) => {
                 if (err) {
                     console.error('خطا در ارسال فایل:', err);
                 }
-                // پاکسازی فایل‌ها
                 cleanupFiles([inputPath, outputPath]);
             });
         })
         .on('error', (err) => {
             console.error('خطا در فشرده‌سازی:', err);
-            // پاکسازی فایل در صورت خطا
             cleanupFiles([inputPath, outputPath]);
             res.status(500).json({ error: 'خطا در فشرده‌سازی ویدیو' });
         })
@@ -146,7 +150,13 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(port, () => {
+// تنظیمات سرور
+const server = app.listen(port, () => {
     console.log(`سرور در پورت ${port} در حال اجراست`);
     console.log(`پوشه آپلود: ${uploadsDir}`);
-}); 
+});
+
+// تنظیمات timeout
+server.timeout = 300000; // 5 دقیقه
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000; 

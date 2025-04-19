@@ -341,110 +341,44 @@
     </div>
 
     <script>
-        const form = document.getElementById('compressForm');
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('video');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const submitBtn = document.getElementById('submitBtn');
-        const statusDiv = document.getElementById('status');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBarFill = document.getElementById('progressBarFill');
-        const progressText = document.getElementById('progressText');
-        const qualityOptions = document.querySelectorAll('.quality-option');
-        const qualityInput = document.getElementById('quality');
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://video-compressor.onrender.com';
 
-        // مدیریت انتخاب کیفیت
-        qualityOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                qualityOptions.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                qualityInput.value = option.dataset.quality;
-            });
-        });
+        let selectedFile = null;
+        let selectedQuality = 'medium';
 
-        // مدیریت drag & drop
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, preventDefaults, false);
-        });
+        // تنظیمات درخواست
+        const requestConfig = {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'multipart/form-data'
+            },
+            mode: 'cors',
+            credentials: 'include'
+        };
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, unhighlight, false);
-        });
-
-        function highlight(e) {
-            uploadArea.classList.add('dragover');
-        }
-
-        function unhighlight(e) {
-            uploadArea.classList.remove('dragover');
-        }
-
-        uploadArea.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            fileInput.files = files;
-            updateFileInfo(files[0]);
-        }
-
-        // مدیریت کلیک روی ناحیه آپلود
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                updateFileInfo(e.target.files[0]);
+        // آپلود فایل
+        async function uploadVideo() {
+            if (!selectedFile) {
+                showStatus('لطفاً یک فایل ویدیویی انتخاب کنید', 'error');
+                return;
             }
-        });
 
-        function updateFileInfo(file) {
-            fileName.textContent = `نام فایل: ${file.name}`;
-            fileSize.textContent = `حجم: ${formatFileSize(file.size)}`;
-            fileInfo.classList.add('show');
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(form);
-            
-            submitBtn.disabled = true;
-            statusDiv.className = '';
-            statusDiv.textContent = '';
-            statusDiv.style.display = 'none';
-            progressContainer.classList.add('show');
-            progressBarFill.style.width = '50%';
-            progressText.textContent = 'در حال فشرده‌سازی...';
+            const formData = new FormData();
+            formData.append('video', selectedFile);
+            formData.append('quality', selectedQuality);
 
             try {
-                const response = await fetch('https://sohaybteimsah.github.io/video-compressor-/compress', {
+                showProgress();
+                const response = await fetch(`${API_URL}/compress`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    ...requestConfig
                 });
 
                 if (!response.ok) {
-                    throw new Error('خطا در فشرده‌سازی');
+                    throw new Error(`خطای سرور: ${response.status}`);
                 }
 
                 const blob = await response.blob();
@@ -457,22 +391,114 @@
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
-                statusDiv.className = 'success show';
-                statusDiv.textContent = 'فشرده‌سازی با موفقیت انجام شد!';
-                progressBarFill.style.width = '100%';
-                progressText.textContent = 'فشرده‌سازی تکمیل شد';
+                showStatus('فشرده‌سازی با موفقیت انجام شد', 'success');
             } catch (error) {
-                statusDiv.className = 'error show';
-                statusDiv.textContent = `خطا: ${error.message}`;
-                progressBarFill.style.width = '0%';
-                progressText.textContent = 'خطا در فشرده‌سازی';
+                console.error('خطا:', error);
+                showStatus(`خطا در فشرده‌سازی: ${error.message}`, 'error');
             } finally {
-                submitBtn.disabled = false;
-                setTimeout(() => {
-                    progressContainer.classList.remove('show');
-                    progressBarFill.style.width = '0%';
-                }, 2000);
+                hideProgress();
             }
+        }
+
+        // نمایش وضعیت
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+            status.classList.add('show');
+            setTimeout(() => {
+                status.classList.remove('show');
+            }, 5000);
+        }
+
+        // نمایش پیشرفت
+        function showProgress() {
+            document.querySelector('.progress-container').classList.add('show');
+            document.querySelector('button').disabled = true;
+        }
+
+        // مخفی کردن پیشرفت
+        function hideProgress() {
+            document.querySelector('.progress-container').classList.remove('show');
+            document.querySelector('button').disabled = false;
+        }
+
+        // انتخاب کیفیت
+        function selectQuality(quality) {
+            selectedQuality = quality;
+            document.querySelectorAll('.quality-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-quality="${quality}"]`).classList.add('selected');
+        }
+
+        // رویدادهای drag & drop
+        const uploadArea = document.querySelector('.upload-area');
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'video/*';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('video/')) {
+                handleFileSelect(file);
+            } else {
+                showStatus('لطفاً یک فایل ویدیویی انتخاب کنید', 'error');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelect(file);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            const fileInfo = document.querySelector('.file-info');
+            fileInfo.innerHTML = `
+                <p>نام فایل: ${file.name}</p>
+                <p>حجم: ${formatFileSize(file.size)}</p>
+                <p>نوع: ${file.type}</p>
+            `;
+            fileInfo.classList.add('show');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // انتخاب کیفیت پیش‌فرض
+        selectQuality('medium');
+
+        // اضافه کردن event listener برای فرم
+        document.getElementById('compressForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await uploadVideo();
+        });
+
+        // اضافه کردن event listener برای انتخاب کیفیت
+        document.querySelectorAll('.quality-option').forEach(option => {
+            option.addEventListener('click', () => {
+                selectQuality(option.dataset.quality);
+            });
         });
     </script>
 </body>
