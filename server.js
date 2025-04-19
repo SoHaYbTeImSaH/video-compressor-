@@ -44,7 +44,7 @@ const upload = multer({
 // تنظیم CORS برای دامنه‌های مجاز
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
     process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:3000', 'https://your-app-name.onrender.com'];
+    ['http://localhost:3000', 'https://sohaybteimsah.github.io'];
 
 app.use(cors({
     origin: function(origin, callback) {
@@ -53,8 +53,14 @@ app.use(cors({
         } else {
             callback(new Error('Not allowed by CORS'));
         }
-    }
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
+
+// اضافه کردن middleware برای OPTIONS
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.static('static'));
@@ -65,7 +71,18 @@ app.get('/', (req, res) => {
 });
 
 // مسیر فشرده‌سازی ویدیو
-app.post('/compress', upload.single('video'), (req, res) => {
+app.post('/compress', (req, res, next) => {
+    // اضافه کردن هدرهای CORS به صورت دستی
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    
+    next();
+}, upload.single('video'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'هیچ فایلی آپلود نشده است' });
     }
