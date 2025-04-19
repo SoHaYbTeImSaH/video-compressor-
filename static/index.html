@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فشرده‌سازی ویدیو | Video Compressor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #45a049;
+            --error-color: #f44336;
+            --success-color: #4CAF50;
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: var(--card-background);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .upload-area:hover {
+            background-color: rgba(76, 175, 80, 0.05);
+        }
+
+        .upload-area.dragover {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-color: var(--primary-dark);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .file-info {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: rgba(76, 175, 80, 0.1);
+            border-radius: var(--border-radius);
+        }
+
+        .file-info.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .quality-selector {
+            margin-bottom: 2rem;
+        }
+
+        .quality-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .quality-option {
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: var(--border-radius);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .quality-option:hover {
+            border-color: var(--primary-color);
+        }
+
+        .quality-option.selected {
+            border-color: var(--primary-color);
+            background-color: rgba(76, 175, 80, 0.1);
+        }
+
+        .quality-option h3 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .quality-option p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            width: 100%;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        button:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .progress-container.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        #status {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            text-align: center;
+            display: none;
+        }
+
+        #status.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        .error {
+            background-color: #ffebee;
+            color: var(--error-color);
+        }
+
+        .success {
+            background-color: #e8f5e9;
+            color: var(--success-color);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .feature {
+            padding: 1rem;
+            background-color: rgba(76, 175, 80, 0.1);
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+
+        .feature h3 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .quality-options {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>فشرده‌سازی ویدیو</h1>
+            <p>به راحتی ویدیوهای خود را فشرده کنید و حجم آنها را کاهش دهید</p>
+        </div>
+
+        <form id="compressForm">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">فایل ویدیو را اینجا رها کنید یا برای انتخاب کلیک کنید</div>
+                <input type="file" id="video" name="video" accept="video/*" required style="display: none;">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <div id="fileName"></div>
+                <div id="fileSize"></div>
+            </div>
+
+            <div class="quality-selector">
+                <h3>انتخاب کیفیت فشرده‌سازی</h3>
+                <div class="quality-options">
+                    <div class="quality-option" data-quality="low">
+                        <h3>کم</h3>
+                        <p>حجم کمتر، کیفیت پایین‌تر</p>
+                    </div>
+                    <div class="quality-option selected" data-quality="medium">
+                        <h3>متوسط</h3>
+                        <p>تعادل بین حجم و کیفیت</p>
+                    </div>
+                    <div class="quality-option" data-quality="high">
+                        <h3>بالا</h3>
+                        <p>کیفیت بهتر، حجم بیشتر</p>
+                    </div>
+                </div>
+                <input type="hidden" id="quality" name="quality" value="medium">
+            </div>
+
+            <button type="submit" id="submitBtn">شروع فشرده‌سازی</button>
+        </form>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">در حال فشرده‌سازی...</div>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="features">
+            <div class="feature">
+                <h3>سریع و کارآمد</h3>
+                <p>فشرده‌سازی سریع با حفظ کیفیت مناسب</p>
+            </div>
+            <div class="feature">
+                <h3>امن و خصوصی</h3>
+                <p>فایل‌های شما به صورت امن پردازش می‌شوند</p>
+            </div>
+            <div class="feature">
+                <h3>ساده و کاربرپسند</h3>
+                <p>رابط کاربری آسان برای همه</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('compressForm');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('video');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const progressText = document.getElementById('progressText');
+        const qualityOptions = document.querySelectorAll('.quality-option');
+        const qualityInput = document.getElementById('quality');
+
+        // مدیریت انتخاب کیفیت
+        qualityOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                qualityOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                qualityInput.value = option.dataset.quality;
+            });
+        });
+
+        // مدیریت drag & drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            uploadArea.classList.remove('dragover');
+        }
+
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            updateFileInfo(files[0]);
+        }
+
+        // مدیریت کلیک روی ناحیه آپلود
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                updateFileInfo(e.target.files[0]);
+            }
+        });
+
+        function updateFileInfo(file) {
+            fileName.textContent = `نام فایل: ${file.name}`;
+            fileSize.textContent = `حجم: ${formatFileSize(file.size)}`;
+            fileInfo.classList.add('show');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            
+            submitBtn.disabled = true;
+            statusDiv.className = '';
+            statusDiv.textContent = '';
+            statusDiv.style.display = 'none';
+            progressContainer.classList.add('show');
+            progressBarFill.style.width = '50%';
+            progressText.textContent = 'در حال فشرده‌سازی...';
+
+            try {
+                const response = await fetch('/compress', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('خطا در فشرده‌سازی');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'compressed-video.mp4';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                statusDiv.className = 'success show';
+                statusDiv.textContent = 'فشرده‌سازی با موفقیت انجام شد!';
+                progressBarFill.style.width = '100%';
+                progressText.textContent = 'فشرده‌سازی تکمیل شد';
+            } catch (error) {
+                statusDiv.className = 'error show';
+                statusDiv.textContent = `خطا: ${error.message}`;
+                progressBarFill.style.width = '0%';
+                progressText.textContent = 'خطا در فشرده‌سازی';
+            } finally {
+                submitBtn.disabled = false;
+                setTimeout(() => {
+                    progressContainer.classList.remove('show');
+                    progressBarFill.style.width = '0%';
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html> 
+</html> 
