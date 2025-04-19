@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: video-compressor
+    name: video-compressor-api
     env: node
     buildCommand: npm install
     startCommand: node server.js
@@ -18,4 +18,14 @@ services:
     disk:
       name: uploads
       mountPath: /tmp/video-compressor-uploads
-      sizeGB: 1 
+      sizeGB: 1
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
+      - path: /*
+        name: Access-Control-Allow-Methods
+        value: "GET, POST, OPTIONS"
+      - path: /*
+        name: Access-Control-Allow-Headers
+        value: "Content-Type, Authorization" 

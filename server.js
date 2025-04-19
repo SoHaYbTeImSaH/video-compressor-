@@ -53,11 +53,11 @@ const upload = multer({
 
 // تنظیم CORS برای دامنه‌های مجاز
 app.use(cors({
-    origin: '*',
+    origin: ['https://sohaybteimsah.github.io', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-    maxAge: 86400 // کش کردن preflight requests برای 24 ساعت
+    credentials: false,
+    maxAge: 86400
 }));
 
 // اضافه کردن middleware برای OPTIONS
